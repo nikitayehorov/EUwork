@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Проєкт для ЄУ</title>
+    
+    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            width: 100%;
+            height: 100%;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        #interactive-map {
+            width: 100%;
+            height: 100%;
+            background-image: url('https://kartinki.pics/uploads/posts/2021-07/1626125061_21-kartinkin-com-p-fon-bumaga-krasivo-21.jpg');
+            background-size: cover;
+            background-position: center;
+        }
+        .loading-indicator {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 255, 255, 0.95);
+            padding: 20px 40px;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+            z-index: 1000;
+            display: none;
+        }
+        
+        .loading-indicator.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translate(-50%, -50%) scale(0.9); }
+            to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+        }
+    </style>
+</head>
+<body>
+    <div id="interactive-map"></div>
+    <div class="loading-indicator" id="loadingIndicator">Оновлення карти...</div>
+
+    <script type="text/javascript">
+const mapData = {
+    id: 'root',
+    label: 'Ти',
+    children: [
+        {
+            id: 'direct-identifiers',
+            label: 'Прямі ідентифікатори',
+            children: [
+                { id: 'full-name', label: 'Повне ім’я' },
+                { id: 'date-of-birth', label: 'Дата народження' },
+                { id: 'national-id', label: 'Ідентифікаційний номер (ІПН, паспорт тощо)' },
+                { id: 'phone-number', label: 'Номер мобільного телефону' },
+                { id: 'email-address', label: 'Електронна поштова адреса' },
+                { id: 'physical-address', label: 'Фактична та зареєстрована адреса' },
+                { id: 'biometric-data', label: 'Біометричні дані (відбитки пальців, розпізнавання обличчя)' }
+            ]
+        },
+        {
+            id: 'device-and-network-data',
+            label: 'Дані про пристрій та мережу',
+            children: [
+                { id: 'ip-address', label: 'IP-адреса' },
+                { id: 'mac-address', label: 'MAC-адреса' },
+                { id: 'device-model', label: 'Модель пристрою' },
+                { id: 'operating-system', label: 'Операційна система' },
+                { id: 'browser-fingerprint', label: 'Цифровий відбиток браузера' },
+                { id: 'screen-resolution', label: 'Роздільна здатність екрана' },
+                { id: 'installed-fonts', label: 'Наявні шрифти' },
+                { id: 'plugins-and-extensions', label: 'Встановлені плагіни та розширення' }
+            ]
+        },
+        {
+            id: 'online-accounts-and-profiles',
+            label: 'Онлайн-акаунти та профілі',
+            children: [
+                { id: 'social-networks', label: 'Соціальні мережі (Facebook, Instagram, LinkedIn, TikTok)' },
+                { id: 'messaging-platforms', label: 'Месенджери (Telegram, WhatsApp, Viber, Signal)' },
+                { id: 'email-providers', label: 'Поштові сервіси (Gmail, Outlook, ProtonMail)' },
+                { id: 'cloud-storage', label: 'Хмарні сховища (Google Drive, Dropbox, iCloud)' },
+                { id: 'e-commerce-accounts', label: 'Акаунти в інтернет-магазинах (Amazon, AliExpress, Rozetka)' },
+                { id: 'gaming-platforms', label: 'Ігрові платформи (Steam, PlayStation Network, Xbox Live)' },
+                { id: 'professional-profiles', label: 'Професійні профілі (GitHub, GitLab, Behance, Dribbble)' }
+            ]
+        },
+        {
+            id: 'digital-behavior',
+            label: 'Цифрове поведінка',
+            children: [
+                { id: 'browsing-history', label: 'Історія відвіданих сайтів' },
+                { id: 'search-queries', label: 'Пошукові запити' },
+                { id: 'clickstream-data', label: 'Послідовність кліків' },
+                { id: 'time-on-page', label: 'Час, проведений на сторінці' },
+                { id: 'scroll-patterns', label: 'Патерни прокрутки' },
+                { id: 'form-interactions', label: 'Взаємодія з формами (навіть без відправки)' },
+                { id: 'autoplay-reactions', label: 'Реакції на автоматичне відтворення медіа' }
+            ]
+        },
+        {
+            id: 'location-and-movement',
+            label: 'Геолокація та пересування',
+            children: [
+                { id: 'gps-coordinates', label: 'GPS-координати' },
+                { id: 'wifi-networks', label: 'Підключені Wi-Fi мережі' },
+                { id: 'cell-tower-data', label: 'Дані про базові станції мобільного зв’язку' },
+                { id: 'check-ins', label: 'Чекіни в соцмережах' },
+                { id: 'transport-apps', label: 'Дані з додатків таксі чи громадського транспорту' },
+                { id: 'travel-history', label: 'Історія подорожей (авіаквитки, бронювання готелів)' }
+            ]
+        },
+        {
+            id: 'content-and-communication',
+            label: 'Контент та комунікація',
+            children: [
+                { id: 'posts-and-comments', label: 'Публікації, коментарі, репості' },
+                { id: 'private-messages', label: 'Особисті повідомлення (навіть зашифровані — метадані зберігаються)' },
+                { id: 'photos-and-videos', label: 'Фото та відео (включаючи метадані EXIF)' },
+                { id: 'voice-recordings', label: 'Голосові повідомлення та записи' },
+                { id: 'documents-shared', label: 'Опубліковані або надіслані документи' },
+                { id: 'user-reviews', label: 'Відгуки про товари чи послуги' }
+            ]
+        },
+        {
+            id: 'financial-and-transactional-data',
+            label: 'Фінансові та транзакційні дані',
+            children: [
+                { id: 'bank-transactions', label: 'Банківські операції' },
+                { id: 'payment-systems', label: 'Дані з PayPal, Stripe, Revolut тощо' },
+                { id: 'crypto-wallets', label: 'Адреси криптогаманців (публічні транзакції)' },
+                { id: 'subscriptions', label: 'Підписки (Netflix, Spotify, хмарні сервіси)' },
+                { id: 'donations', label: 'Зроблені пожертви' }
+            ]
+        },
+        {
+            id: 'third-party-and-inferred-data',
+            label: 'Дані від третіх осіб та висновки',
+            children: [
+                { id: 'data-brokers', label: 'Інформація від агрегаторів даних (Spokeo, Whitepages, Clearbit)' },
+                { id: 'advertising-profiles', label: 'Профілі для таргетингу (Google Ads, Meta Ads)' },
+                { id: 'social-graph', label: 'Соціальний граф — хто з ким пов’язаний' },
+                { id: 'inferred-interests', label: 'Висновки про інтереси, статус, дохід, політичні погляди' },
+                { id: 'public-records', label: 'Відкриті реєстри (судові, виборчі, майнові)' },
+                { id: 'facial-recognition-dbs', label: 'Бази даних розпізнавання облич' }
+            ]
+        },
+        {
+            id: 'metadata-and-hidden-traces',
+            label: 'Метадані та приховані сліди',
+            children: [
+                { id: 'email-headers', label: 'Заголовки електронних листів' },
+                { id: 'file-metadata', label: 'Метадані документів (автор, час створення)' },
+                { id: 'photo-exif', label: 'EXIF-дані фото (координати, модель камери, дата)' },
+                { id: 'network-logs', label: 'Логи мережевих запитів' },
+                { id: 'cache-and-cookies', label: 'Кеш, cookies, localStorage' },
+                { id: 'session-ids', label: 'Ідентифікатори сесій' }
+            ]
+        }
+    ]
+};
+
+        const container = document.getElementById('interactive-map');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const paperTexture = 'https://kartinki.pics/uploads/posts/2021-07/1626125061_21-kartinkin-com-p-fon-bumaga-krasivo-21.jpg';
+        const expandedNodes = new Set(['root']);
+        let network = null;
+        let nodesDataSet = null;
+        let edgesDataSet = null;
+        let isAnimating = false;
+        function prepareData() {
+            const nodes = [];
+            const edges = [];
+            function traverse(nodeData, parentId = null, level = 0) {
+                const size = nodeData.id === 'root' ? 85 : Math.max(45, 60 - level * 5);
+                nodes.push({
+                    id: nodeData.id,
+                    label: nodeData.label,
+                    shape: 'circularImage',
+                    image: paperTexture,
+                    brokenImage: paperTexture,
+                    size: size,
+                    font: { 
+                        size: nodeData.id === 'root' ? 18 : 14, 
+                        color: '#2c3e50', 
+                        face: 'Segoe UI',
+                        bold: nodeData.id === 'root'
+                    },
+                    borderWidth: 2,
+                    hasChildren: nodeData.children && nodeData.children.length > 0,
+                    level: level
+                });
+
+                if (parentId) {
+                    edges.push({ 
+                        from: parentId, 
+                        to: nodeData.id,
+                        id: `${parentId}-${nodeData.id}`
+                    });
+                }
+
+                if (expandedNodes.has(nodeData.id) && nodeData.children) {
+                    nodeData.children.forEach(child => traverse(child, nodeData.id, level + 1));
+                }
+            }
+
+            traverse(mapData);
+            return { nodes, edges };
+        }
+        const options = {
+            nodes: {
+                color: {
+                    border: 'rgba(52, 73, 94, 0.3)',
+                    background: '#ffffff',
+                    highlight: { border: '#3498db', background: '#ffffff' },
+                    hover: { border: '#3498db', background: '#ffffff' }
+                },
+                shadow: {
+                    enabled: true,
+                    color: 'rgba(0,0,0,0.15)',
+                    size: 12,
+                    x: 3,
+                    y: 3
+                }
+            },
+            edges: {
+                color: {
+                    color: 'rgba(52, 73, 94, 0.25)',
+                    highlight: 'rgba(52, 152, 219, 0.6)',
+                    hover: 'rgba(52, 152, 219, 0.4)'
+                },
+                width: 2.5,
+                smooth: {
+                    enabled: true,
+                    type: 'cubicBezier',
+                    forceDirection: 'none',
+                    roundness: 0.6
+                },
+                shadow: {
+                    enabled: true,
+                    color: 'rgba(0,0,0,0.08)',
+                    size: 6,
+                    x: 2,
+                    y: 2
+                }
+            },
+            physics: {
+                enabled: true,
+                barnesHut: {
+                    gravitationalConstant: -12000,
+                    centralGravity: 0.25,
+                    springLength: 150,
+                    springConstant: 0.03,
+                    damping: 0.35,
+                    avoidOverlap: 0.6
+                },
+                solver: 'barnesHut',
+                stabilization: {
+                    enabled: true,
+                    iterations: 1500,
+                    updateInterval: 20,
+                    fit: true
+                },
+                timestep: 0.35,
+                adaptiveTimestep: true
+            },
+            interaction: {
+                hover: true,
+                dragNodes: true,
+                dragView: true,
+                zoomView: true,
+                tooltipDelay: 150,
+                hideEdgesOnDrag: false,
+                hideEdgesOnZoom: false
+            },
+            layout: {
+                improvedLayout: true,
+                hierarchical: false
+            }
+        };
+
+        const initialData = prepareData();
+        nodesDataSet = new vis.DataSet(initialData.nodes);
+        edgesDataSet = new vis.DataSet(initialData.edges);
+        
+        network = new vis.Network(container, {
+            nodes: nodesDataSet,
+            edges: edgesDataSet
+        }, options);
+        async function expandNode(nodeId) {
+            if (isAnimating) return;
+            isAnimating = true;
+            loadingIndicator.classList.add('active');
+
+            const data = prepareData();
+            const currentNodeIds = nodesDataSet.getIds();
+            const newNodes = data.nodes.filter(n => !currentNodeIds.includes(n.id));
+            const newEdges = data.edges.filter(e => !edgesDataSet.get(e.id));
+
+            if (newNodes.length > 0) {
+                network.setOptions({ physics: { enabled: false } });
+                const nodesToAdd = newNodes.map(node => ({
+                    ...node,
+                    size: 5,
+                    font: { ...node.font, size: 1 },
+                    opacity: 0,
+                    color: {
+                        ...options.nodes.color,
+                        background: 'rgba(255, 255, 255, 0)'
+                    }
+                }));
+                
+                nodesDataSet.add(nodesToAdd);
+                edgesDataSet.add(newEdges);
+
+                await new Promise(resolve => setTimeout(resolve, 100));
+                const steps = 15;
+                for (let i = 0; i <= steps; i++) {
+                    const progress = i / steps;
+                    const easeProgress = 1 - Math.pow(1 - progress, 3); 
+                    const updates = newNodes.map(node => ({
+                        id: node.id,
+                        size: 5 + (node.size - 5) * easeProgress,
+                        font: { 
+                            ...node.font, 
+                            size: 1 + (node.font.size - 1) * easeProgress 
+                        },
+                        opacity: easeProgress,
+                        color: {
+                            ...options.nodes.color,
+                            background: `rgba(255, 255, 255, ${easeProgress})`
+                        }
+                    }));
+                    
+                    nodesDataSet.update(updates);
+                    await new Promise(resolve => setTimeout(resolve, 30));
+                }
+                const finalUpdates = newNodes.map(node => ({
+                    id: node.id,
+                    color: options.nodes.color,
+                    opacity: 1
+                }));
+                nodesDataSet.update(finalUpdates);
+
+                await new Promise(resolve => setTimeout(resolve, 100));
+                network.setOptions({ physics: { enabled: true } });
+                network.stabilize(400);
+
+                setTimeout(() => {
+                    loadingIndicator.classList.remove('active');
+                    isAnimating = false;
+                }, 500);
+            } else {
+                loadingIndicator.classList.remove('active');
+                isAnimating = false;
+            }
+        }
+        async function collapseNode(nodeId) {
+            if (isAnimating) return;
+            isAnimating = true;
+            loadingIndicator.classList.add('active');
+
+            const nodesToRemove = [];
+            
+            function findChildren(parentId) {
+                const children = edgesDataSet.get({
+                    filter: edge => edge.from === parentId
+                });
+                
+                children.forEach(edge => {
+                    nodesToRemove.push(edge.to);
+                    findChildren(edge.to);
+                });
+            }
+            
+            findChildren(nodeId);
+
+            if (nodesToRemove.length > 0) {
+                network.setOptions({ physics: { enabled: false } });
+                const steps = 15;
+                for (let i = steps; i >= 0; i--) {
+                    const progress = i / steps;
+                    const easeProgress = Math.pow(progress, 3); 
+                    
+                    const updates = nodesToRemove.map(id => {
+                        const node = nodesDataSet.get(id);
+                        return {
+                            id: id,
+                            size: node.size * easeProgress,
+                            font: { size: node.font.size * easeProgress },
+                            opacity: easeProgress,
+                            color: {
+                                ...options.nodes.color,
+                                background: `rgba(255, 255, 255, ${easeProgress})`
+                            }
+                        };
+                    });
+                    nodesDataSet.update(updates);
+                    await new Promise(resolve => setTimeout(resolve, 30));
+                }
+                await new Promise(resolve => setTimeout(resolve, 100));
+                nodesDataSet.remove(nodesToRemove);
+                const edgesToRemove = edgesDataSet.get({
+                    filter: edge => nodesToRemove.includes(edge.from) || 
+                                   nodesToRemove.includes(edge.to)
+                }).map(e => e.id);
+                edgesDataSet.remove(edgesToRemove);
+                await new Promise(resolve => setTimeout(resolve, 100));
+                network.setOptions({ physics: { enabled: true } });
+                network.stabilize(300);
+                setTimeout(() => {
+                    loadingIndicator.classList.remove('active');
+                    isAnimating = false;
+                }, 400);
+            } else {
+                loadingIndicator.classList.remove('active');
+                isAnimating = false;
+            }
+        }
+        network.on('click', function (params) {
+            if (params.nodes.length > 0 && !isAnimating) {
+                const nodeId = params.nodes[0];
+                const node = nodesDataSet.get(nodeId);
+                const originalSize = node.size;
+                nodesDataSet.update({
+                    id: nodeId,
+                    size: originalSize * 1.25,
+                    borderWidth: 4
+                });
+
+                setTimeout(() => {
+                    nodesDataSet.update({
+                        id: nodeId,
+                        size: originalSize,
+                        borderWidth: 2
+                    });
+                }, 200);
+                setTimeout(() => {
+                    if (expandedNodes.has(nodeId)) {
+                        if (nodeId !== 'root') {
+                            expandedNodes.delete(nodeId);
+                            collapseNode(nodeId);
+                        }
+                    } else {
+                        expandedNodes.add(nodeId);
+                        expandNode(nodeId);
+                    }
+                }, 150);
+            }
+        });
+        network.on('hoverNode', function (params) {
+            if (!isAnimating) {
+                const nodeId = params.node;
+                const node = nodesDataSet.get(nodeId);
+                
+                if (node.hasChildren) {
+                    container.style.cursor = 'pointer';
+                    nodesDataSet.update({
+                        id: nodeId,
+                        borderWidth: 3.5,
+                        shadow: {
+                            enabled: true,
+                            color: 'rgba(52, 152, 219, 0.4)',
+                            size: 18,
+                            x: 4,
+                            y: 4
+                        }
+                    });
+                }
+            }
+        });
+        network.on('blurNode', function (params) {
+            const nodeId = params.node;
+            nodesDataSet.update({
+                id: nodeId,
+                borderWidth: 2,
+                shadow: {
+                    enabled: true,
+                    color: 'rgba(0,0,0,0.15)',
+                    size: 12,
+                    x: 3,
+                    y: 3
+                }
+            });
+            container.style.cursor = 'default';
+        });
+        network.once('stabilizationIterationsDone', function() {
+            network.setOptions({ physics: { enabled: true } });
+        });
+    </script>
+</body>
+</html>
