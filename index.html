@@ -178,6 +178,9 @@ const mapData = {
         let nodesDataSet = null;
         let edgesDataSet = null;
         let isAnimating = false;
+
+        const clickSound = new Audio('click.mp3');
+
         function prepareData() {
             const nodes = [];
             const edges = [];
@@ -429,6 +432,11 @@ const mapData = {
         }
         network.on('click', function (params) {
             if (params.nodes.length > 0 && !isAnimating) {
+                
+               
+                clickSound.currentTime = 0;
+                clickSound.play();
+                
                 const nodeId = params.nodes[0];
                 const node = nodesDataSet.get(nodeId);
                 const originalSize = node.size;
@@ -499,4 +507,4 @@ const mapData = {
         });
     </script>
 </body>
-</html>
+</html>```
