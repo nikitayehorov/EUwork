@@ -17,6 +17,11 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: #1a1a2e;
             overflow: hidden;
+            transition: background-color 0.3s ease;
+        }
+
+        body.light-theme {
+            background-color: #f5f5f5;
         }
         
         #canvas-bg, #canvas-particles {
@@ -56,9 +61,46 @@
             outline: none;
         }
 
+        body.light-theme #filter-input {
+            border: 2px solid rgba(0, 0, 0, 0.3);
+            background-color: rgba(255, 255, 255, 0.8);
+            color: #333;
+        }
+
         #filter-input:focus {
             border-color: #3498db;
             box-shadow: 0 0 15px rgba(52, 152, 219, 0.5);
+        }
+
+        #theme-toggle {
+            position: absolute;
+            top: 20px;
+            left: 280px;
+            background-color: rgba(255, 255, 255, 0.9);
+            border: 2px solid rgba(52, 152, 219, 0.5);
+            padding: 8px 15px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            outline: none;
+            z-index: 1003;
+            backdrop-filter: blur(10px);
+        }
+
+        #theme-toggle:hover {
+            background-color: #fff;
+            border-color: #3498db;
+            box-shadow: 0 0 15px rgba(52, 152, 219, 0.5);
+        }
+
+        body.light-theme #theme-toggle {
+            background-color: rgba(50, 50, 50, 0.8);
+            color: white;
+        }
+
+        body.light-theme #theme-toggle:hover {
+            background-color: #333;
         }
 
         #gamification-ui {
@@ -77,10 +119,19 @@
             backdrop-filter: blur(10px);
         }
 
+        body.light-theme #gamification-ui {
+            background-color: rgba(50, 50, 50, 0.9);
+            color: white;
+        }
+
         #score-container {
             font-size: 18px;
             font-weight: bold;
             color: #2c3e50;
+        }
+
+        body.light-theme #score-container {
+            color: #fff;
         }
 
         #score-value {
@@ -94,6 +145,10 @@
             background-color: #ecf0f1;
             border-radius: 5px;
             overflow: hidden;
+        }
+
+        body.light-theme #progress-container {
+            background-color: rgba(255, 255, 255, 0.3);
         }
 
         #progress-bar {
@@ -163,9 +218,16 @@
             }
 
             #filter-input {
-                width: 180px;
+                width: 140px;
                 font-size: 13px;
                 padding: 8px 12px;
+            }
+
+            #theme-toggle {
+                top: 10px;
+                left: 155px;
+                padding: 7px 12px;
+                font-size: 14px;
             }
 
             #gamification-ui {
@@ -197,9 +259,16 @@
             }
 
             #filter-input {
-                width: 140px;
+                width: 100px;
                 font-size: 12px;
                 padding: 7px 10px;
+            }
+
+            #theme-toggle {
+                top: 5px;
+                left: 110px;
+                padding: 6px 10px;
+                font-size: 13px;
             }
 
             #gamification-ui {
@@ -242,6 +311,8 @@
         <input type="text" id="filter-input" placeholder="🔍 Пошук...">
     </div>
 
+    <button id="theme-toggle">🌙 Ніч</button>
+
     <div id="gamification-ui">
         <div id="score-container"><span>⭐ Очки:</span><span id="score-value">0</span></div>
         <div id="progress-container"><div id="progress-bar"></div></div>
@@ -249,6 +320,53 @@
     <div id="achievement-toast-container"></div>
 
     <script type="text/javascript">
+        let isDarkTheme = true;
+
+        const themeToggle = document.getElementById('theme-toggle');
+        const body = document.body;
+
+        function setTheme(isDark) {
+            isDarkTheme = isDark;
+            if (isDark) {
+                body.classList.remove('light-theme');
+                themeToggle.textContent = '🌙 Ніч';
+            } else {
+                body.classList.add('light-theme');
+                themeToggle.textContent = '☀️ День';
+            }
+            updateParticleColors();
+            updateNodeColors();
+        }
+
+        themeToggle.addEventListener('click', () => {
+            setTheme(!isDarkTheme);
+        });
+
+        function getThemeColors() {
+            if (isDarkTheme) {
+                return {
+                    bgParticleColor: 'rgba(227, 227, 255, ',
+                    nodeBackground: '#ffffff',
+                    nodeBorder: '#3498db',
+                    nodeFont: '#2c3e50',
+                    dimmedBorder: 'rgba(255,255,255,0.1)',
+                    dimmedBg: 'rgba(255,255,255,0.05)',
+                    dimmedFont: 'rgba(255,255,255,0.2)',
+                    edgeColor: 'rgba(255, 255, 255, 0.3)'
+                };
+            } else {
+                return {
+                    bgParticleColor: 'rgba(0, 0, 0, ',
+                    nodeBackground: '#1a1a2e',
+                    nodeBorder: '#555',
+                    nodeFont: '#ffffff',
+                    dimmedBorder: 'rgba(0,0,0,0.1)',
+                    dimmedBg: 'rgba(0,0,0,0.05)',
+                    dimmedFont: 'rgba(255,255,255,0.3)',
+                    edgeColor: 'rgba(0, 0, 0, 0.2)'
+                };
+            }
+        }
 
         const createClickSound = () => {
             const audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -302,7 +420,8 @@
                 if (this.y > bgCanvas.height) this.y = 0;
             }
             draw() {
-                bgCtx.fillStyle = `rgba(227, 227, 255, ${this.opacity})`;
+                const colors = getThemeColors();
+                bgCtx.fillStyle = `${colors.bgParticleColor}${this.opacity})`;
                 bgCtx.beginPath();
                 bgCtx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
                 bgCtx.fill();
@@ -365,19 +484,41 @@
         initBgParticles();
         animateParticles();
 
+        function updateParticleColors() {
+            bgParticles = [];
+            initBgParticles();
+        }
+
         let filterTimeout;
-        const dimmedColor = { border: 'rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)' };
-        const highlightColor = { border: '#3498db', background: '#ffffff' };
+
+        function getFilterColors() {
+            if (isDarkTheme) {
+                return {
+                    highlight: { border: '#3498db', background: '#ffffff' },
+                    dimmed: { border: 'rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)' },
+                    fontHighlight: '#2c3e50',
+                    fontDimmed: 'rgba(255,255,255,0.2)'
+                };
+            } else {
+                return {
+                    highlight: { border: '#555', background: '#1a1a2e' },
+                    dimmed: { border: 'rgba(0,0,0,0.1)', background: 'rgba(0,0,0,0.05)' },
+                    fontHighlight: '#ffffff',
+                    fontDimmed: 'rgba(255,255,255,0.3)'
+                };
+            }
+        }
 
         function applyFilter() {
             const searchTerm = filterInput.value.toLowerCase();
             const allNodes = nodesDataSet.get({ fields: ['id', 'label'] });
+            const colors = getFilterColors();
             
             if (!searchTerm) {
                 const updates = allNodes.map(node => ({
                     id: node.id,
-                    color: highlightColor,
-                    font: { color: '#2c3e50' }
+                    color: colors.highlight,
+                    font: { color: colors.fontHighlight }
                 }));
                 nodesDataSet.update(updates);
                 edgesDataSet.update(edgesDataSet.get().map(edge => ({ id: edge.id, color: { opacity: 1 } })));
@@ -391,9 +532,9 @@
                 const isMatch = node.label.toLowerCase().includes(searchTerm);
                 if (isMatch) {
                     matchingNodeIds.add(node.id);
-                    nodeUpdates.push({ id: node.id, color: highlightColor, font: { color: '#2c3e50' } });
+                    nodeUpdates.push({ id: node.id, color: colors.highlight, font: { color: colors.fontHighlight } });
                 } else {
-                    nodeUpdates.push({ id: node.id, color: dimmedColor, font: { color: 'rgba(255,255,255,0.2)' } });
+                    nodeUpdates.push({ id: node.id, color: colors.dimmed, font: { color: colors.fontDimmed } });
                 }
             });
             nodesDataSet.update(nodeUpdates);
@@ -471,9 +612,26 @@
             });
         }
 
+        function getNodeColors() {
+            if (isDarkTheme) {
+                return {
+                    border: '#3498db',
+                    background: '#ffffff',
+                    font: 'ffffff'
+                };
+            } else {
+                return {
+                    border: '#555',
+                    background: '#1a1a2e',
+                    font: '#333333'
+                };
+            }
+        }
+
         function prepareData() {
             const nodes = [];
             const edges = [];
+            const colors = getNodeColors();
 
             function traverse(nodeData, parentId = null, level = 0) {
                 const size = nodeData.id === 'root' ? 70 : Math.max(40, 55 - level * 4);
@@ -482,8 +640,8 @@
                     label: nodeData.label,
                     shape: 'dot',
                     size: size,
-                    color: { border: '#3498db', background: '#ffffff', highlight: { border: '#2980b9', background: '#ecf0f1' } },
-                    font: { size: nodeData.id === 'root' ? 16 : 12, color: '#2c3e50', face: 'Segoe UI', bold: nodeData.id === 'root' },
+                    color: { border: colors.border, background: colors.background, highlight: { border: '#2980b9', background: colors.background } },
+                    font: { size: nodeData.id === 'root' ? 16 : 12, color: colors.font, face: 'Segoe UI', bold: nodeData.id === 'root' },
                     borderWidth: 2,
                     shadow: { enabled: true, color: 'rgba(0,0,0,0.15)', size: 10, x: 2, y: 2 },
                     hasChildren: nodeData.children && nodeData.children.length > 0,
@@ -501,6 +659,18 @@
 
             traverse(mapData);
             return { nodes, edges };
+        }
+
+        function updateNodeColors() {
+            if (!nodesDataSet) return;
+            const colors = getNodeColors();
+            const allNodes = nodesDataSet.get();
+            const updates = allNodes.map(node => ({
+                id: node.id,
+                color: { border: colors.border, background: colors.background },
+                font: { color: colors.font }
+            }));
+            nodesDataSet.update(updates);
         }
 
         const isMobile = window.innerWidth <= 768;
