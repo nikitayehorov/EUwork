@@ -41,12 +41,15 @@
             z-index: 2;
         }
 
-        #filter-container {
+        .ui-controls {
             position: absolute;
             top: 20px;
             left: 20px;
             z-index: 1003;
-            right: auto;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
         }
 
         #filter-input {
@@ -72,35 +75,41 @@
             box-shadow: 0 0 15px rgba(52, 152, 219, 0.5);
         }
 
-        #theme-toggle {
-            position: absolute;
-            top: 20px;
-            left: 280px;
+        .control-btn {
             background-color: rgba(255, 255, 255, 0.9);
             border: 2px solid rgba(52, 152, 219, 0.5);
             padding: 8px 15px;
             border-radius: 20px;
             cursor: pointer;
-            font-size: 16px;
+            font-size: 14px;
+            font-weight: 600;
             transition: all 0.3s ease;
             outline: none;
-            z-index: 1003;
             backdrop-filter: blur(10px);
+            color: #333;
+            white-space: nowrap;
         }
 
-        #theme-toggle:hover {
+        .control-btn:hover {
             background-color: #fff;
             border-color: #3498db;
             box-shadow: 0 0 15px rgba(52, 152, 219, 0.5);
+            transform: translateY(-1px);
         }
 
-        body.light-theme #theme-toggle {
+        .control-btn:active {
+            transform: translateY(1px);
+        }
+
+        body.light-theme .control-btn {
             background-color: rgba(50, 50, 50, 0.8);
             color: white;
+            border-color: #555;
         }
 
-        body.light-theme #theme-toggle:hover {
+        body.light-theme .control-btn:hover {
             background-color: #333;
+            border-color: #3498db;
         }
 
         #gamification-ui {
@@ -200,90 +209,42 @@
         }
 
         @keyframes slideInUp {
-            from {
-                opacity: 0;
-                transform: translateY(50px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+            from { opacity: 0; transform: translateY(50px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
-
         @media (max-width: 768px) {
-            #filter-container {
+            .ui-controls {
                 top: 10px;
                 left: 10px;
+                right: 10px;
+                gap: 8px;
             }
 
             #filter-input {
                 width: 140px;
                 font-size: 13px;
                 padding: 8px 12px;
+                flex-grow: 1;
             }
 
-            #theme-toggle {
-                top: 10px;
-                left: 155px;
+            .control-btn {
                 padding: 7px 12px;
-                font-size: 14px;
+                font-size: 13px;
             }
 
             #gamification-ui {
-                top: 10px;
+                top: 60px;
                 right: 10px;
                 width: 180px;
                 padding: 12px;
                 font-size: 14px;
             }
 
-            #score-container {
-                font-size: 16px;
-            }
-
-            .achievement-toast {
-                padding: 12px 20px;
-                font-size: 13px;
-            }
-
-            .toast-icon {
-                font-size: 24px;
-            }
+            #score-container { font-size: 16px; }
+            .achievement-toast { padding: 12px 20px; font-size: 13px; }
+            .toast-icon { font-size: 24px; }
         }
-
-        @media (max-width: 480px) {
-            #filter-container {
-                top: 5px;
-                left: 5px;
-            }
-
-            #filter-input {
-                width: 100px;
-                font-size: 12px;
-                padding: 7px 10px;
-            }
-
-            #theme-toggle {
-                top: 5px;
-                left: 110px;
-                padding: 6px 10px;
-                font-size: 13px;
-            }
-
-            #gamification-ui {
-                top: 5px;
-                right: 5px;
-                width: 150px;
-                padding: 10px;
-            }
-
-            .achievement-toast {
-                padding: 10px 15px;
-                gap: 10px;
-            }
-        }
-
 
         @media (prefers-color-scheme: dark) {
             #filter-input {
@@ -291,14 +252,8 @@
             }
         }
 
-
-        #interactive-map {
-            will-change: transform;
-        }
-
-        canvas {
-            will-change: contents;
-        }
+        #interactive-map { will-change: transform; }
+        canvas { will-change: contents; }
     </style>
 </head>
 <body>
@@ -307,11 +262,11 @@
 
     <div id="interactive-map"></div>
 
-    <div id="filter-container">
+    <div class="ui-controls">
         <input type="text" id="filter-input" placeholder="🔍 Пошук...">
+        <button id="theme-toggle" class="control-btn">🌙 Ніч</button>
+        <button id="relax-mode" class="control-btn">🧘 Релакс</button>
     </div>
-
-    <button id="theme-toggle">🌙 Ніч</button>
 
     <div id="gamification-ui">
         <div id="score-container"><span>⭐ Очки:</span><span id="score-value">0</span></div>
@@ -321,8 +276,10 @@
 
     <script type="text/javascript">
         let isDarkTheme = true;
+        let isRelaxedMode = false;
 
         const themeToggle = document.getElementById('theme-toggle');
+        const relaxButton = document.getElementById('relax-mode');
         const body = document.body;
 
         function setTheme(isDark) {
@@ -336,6 +293,12 @@
             }
             updateParticleColors();
             updateNodeColors();
+            
+            const colors = getThemeColors();
+            edgesDataSet.update(edgesDataSet.getIds().map(id => ({
+                id: id,
+                color: { color: colors.edgeColor }
+            })));
         }
 
         themeToggle.addEventListener('click', () => {
@@ -343,16 +306,16 @@
         });
 
         function getThemeColors() {
+            const mediumGrayEdge = 'rgba(128, 128, 128, 0.5)'; 
+
             if (isDarkTheme) {
                 return {
                     bgParticleColor: 'rgba(227, 227, 255, ',
                     nodeBackground: '#ffffff',
                     nodeBorder: '#3498db',
                     nodeFont: '#2c3e50',
-                    dimmedBorder: 'rgba(255,255,255,0.1)',
-                    dimmedBg: 'rgba(255,255,255,0.05)',
-                    dimmedFont: 'rgba(255,255,255,0.2)',
-                    edgeColor: 'rgba(255, 255, 255, 0.3)'
+                    edgeColor: mediumGrayEdge,
+                    dimmedColor: 'rgba(255,255,255,0.1)'
                 };
             } else {
                 return {
@@ -360,17 +323,24 @@
                     nodeBackground: '#1a1a2e',
                     nodeBorder: '#555',
                     nodeFont: '#ffffff',
-                    dimmedBorder: 'rgba(0,0,0,0.1)',
-                    dimmedBg: 'rgba(0,0,0,0.05)',
-                    dimmedFont: 'rgba(255,255,255,0.3)',
-                    edgeColor: 'rgba(0, 0, 0, 0.2)'
+                    edgeColor: mediumGrayEdge,
+                    dimmedColor: 'rgba(0,0,0,0.1)'
                 };
+            }
+        }
+
+        function getNodeColors() {
+            if (isDarkTheme) {
+                return { border: '#3498db', background: '#1a1a2e', font: '#ffffff' };
+            } else {
+                return { border: '#555', background: '#ffffff', font: '#000000' };
             }
         }
 
         const createClickSound = () => {
             const audioContext = new (window.AudioContext || window.webkitAudioContext)();
             return () => {
+                if (audioContext.state === 'suspended') audioContext.resume();
                 const osc = audioContext.createOscillator();
                 const gain = audioContext.createGain();
                 osc.connect(gain);
@@ -472,12 +442,9 @@
         function animateParticles() {
             bgCtx.clearRect(0, 0, bgCanvas.width, bgCanvas.height);
             pCtx.clearRect(0, 0, particleCanvas.width, particleCanvas.height);
-            
             bgParticles.forEach(p => { p.update(); p.draw(); });
-            
             clickParticles = clickParticles.filter(p => p.life > 0);
             clickParticles.forEach(p => { p.update(); p.draw(); });
-            
             requestAnimationFrame(animateParticles);
         }
 
@@ -491,40 +458,47 @@
 
         let filterTimeout;
 
-        function getFilterColors() {
+        function getFilterHighlightColors() {
             if (isDarkTheme) {
                 return {
-                    highlight: { border: '#3498db', background: '#ffffff' },
+                    highlight: { border: '#3498db', background: '#1a1a2e' },
                     dimmed: { border: 'rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)' },
-                    fontHighlight: '#2c3e50',
+                    fontHighlight: '#ffffff',
                     fontDimmed: 'rgba(255,255,255,0.2)'
                 };
             } else {
                 return {
-                    highlight: { border: '#555', background: '#1a1a2e' },
+                    highlight: { border: '#555', background: '#ffffff' },
                     dimmed: { border: 'rgba(0,0,0,0.1)', background: 'rgba(0,0,0,0.05)' },
-                    fontHighlight: '#ffffff',
-                    fontDimmed: 'rgba(255,255,255,0.3)'
+                    fontHighlight: '#000000',
+                    fontDimmed: 'rgba(0,0,0,0.3)'
                 };
             }
         }
 
         function applyFilter() {
             const searchTerm = filterInput.value.toLowerCase();
-            const allNodes = nodesDataSet.get({ fields: ['id', 'label'] });
-            const colors = getFilterColors();
+            const allNodes = nodesDataSet.get();
             
             if (!searchTerm) {
+                const standardColors = getNodeColors();
+                
                 const updates = allNodes.map(node => ({
                     id: node.id,
-                    color: colors.highlight,
-                    font: { color: colors.fontHighlight }
+                    color: { 
+                        border: standardColors.border, 
+                        background: standardColors.background 
+                    },
+                    font: { color: standardColors.font }
                 }));
                 nodesDataSet.update(updates);
-                edgesDataSet.update(edgesDataSet.get().map(edge => ({ id: edge.id, color: { opacity: 1 } })));
+                
+                const edgeColor = getThemeColors().edgeColor;
+                edgesDataSet.update(edgesDataSet.getIds().map(id => ({ id: id, color: { opacity: 1, color: edgeColor } })));
                 return;
             }
 
+            const colors = getFilterHighlightColors();
             const nodeUpdates = [];
             const matchingNodeIds = new Set();
             
@@ -541,7 +515,10 @@
 
             const edgeUpdates = edgesDataSet.get().map(edge => ({
                 id: edge.id,
-                color: { opacity: (matchingNodeIds.has(edge.from) && matchingNodeIds.has(edge.to)) ? 1 : 0.1 }
+                color: { 
+                    opacity: (matchingNodeIds.has(edge.from) && matchingNodeIds.has(edge.to)) ? 1 : 0.1,
+                    color: getThemeColors().edgeColor
+                }
             }));
             edgesDataSet.update(edgeUpdates);
         }
@@ -565,6 +542,75 @@
             ]
         };
 
+        relaxButton.addEventListener('click', () => {
+            playClickSound();
+            toggleRelaxedMode();
+        });
+
+        function getAllNodeIds(node, set = new Set()) {
+            set.add(node.id);
+            if (node.children) {
+                node.children.forEach(child => getAllNodeIds(child, set));
+            }
+            return set;
+        }
+
+        async function toggleRelaxedMode() {
+            if (isAnimating) return;
+            isAnimating = true;
+
+            if (!isRelaxedMode) {
+                isRelaxedMode = true;
+                relaxButton.style.backgroundColor = isDarkTheme ? '#3498db' : '#2980b9';
+                relaxButton.style.color = 'white';
+                relaxButton.textContent = '❌ Згорнути';
+
+                const allIds = getAllNodeIds(mapData);
+                allIds.forEach(id => expandedNodes.add(id));
+
+                const data = prepareData();
+                
+                network.setOptions({ physics: { enabled: false } });
+
+                nodesDataSet.clear();
+                edgesDataSet.clear();
+                nodesDataSet.add(data.nodes);
+                edgesDataSet.add(data.edges);
+
+                await new Promise(r => setTimeout(r, 50));
+                network.fit();
+                
+                network.setOptions({ physics: { enabled: true } });
+                isAnimating = false;
+
+                score = totalDiscoverableNodes * 10;
+                discoveredNodes.clear();
+                allIds.forEach(id => discoveredNodes.add(id));
+                updateScoreDisplay();
+                updateProgressBar();
+                checkAchievements();
+
+            } else {
+                isRelaxedMode = false;
+                relaxButton.style.backgroundColor = '';
+                relaxButton.style.color = '';
+                relaxButton.textContent = '🧘 Релакс';
+
+                expandedNodes.clear();
+                expandedNodes.add('root');
+                
+                const data = prepareData();
+                nodesDataSet.clear();
+                edgesDataSet.clear();
+                nodesDataSet.add(data.nodes);
+                edgesDataSet.add(data.edges);
+                
+                network.fit();
+                isAnimating = false;
+            }
+        }
+
+
         const expandedNodes = new Set(['root']);
         let network = null;
         let nodesDataSet = null;
@@ -573,21 +619,18 @@
 
         let score = 0;
         const discoveredNodes = new Set(['root']);
-        const totalDiscoverableNodes = mapData.children.length;
+        const totalDiscoverableNodes = mapData.children.reduce((acc, cat) => acc + 1 + (cat.children ? cat.children.length : 0), 0);
 
         const achievements = [
-            { id: 'novice_explorer', name: 'Новачок-дослідник', description: 'Відкрийте першу категорію.', unlocked: false, icon: '🧭', condition: () => discoveredNodes.size >= 2 },
-            { id: 'curious_mind', name: 'Допитливий розум', description: 'Відкрито 3 категорії.', unlocked: false, icon: '💡', condition: () => discoveredNodes.size >= 4 },
-            { id: 'data_detective', name: 'Детектив', description: 'Понад половину категорій!', unlocked: false, icon: '🕵️', condition: () => discoveredNodes.size > (totalDiscoverableNodes / 2) + 1 },
-            { id: 'digital_archaeologist', name: 'Археолог', description: 'Всі категорії відкрито!', unlocked: false, icon: '🏆', condition: () => discoveredNodes.size > totalDiscoverableNodes }
+            { id: 'novice_explorer', name: 'Новачок', description: 'Відкрито першу категорію.', unlocked: false, icon: '🧭', condition: () => discoveredNodes.size >= 2 },
+            { id: 'curious_mind', name: 'Допитливий', description: 'Відкрито 3 категорії.', unlocked: false, icon: '💡', condition: () => discoveredNodes.size >= 4 },
+            { id: 'data_detective', name: 'Детектив', description: 'Понад половину!', unlocked: false, icon: '🕵️', condition: () => discoveredNodes.size > (totalDiscoverableNodes / 2) },
+            { id: 'digital_archaeologist', name: 'Археолог', description: 'Все відкрито!', unlocked: false, icon: '🏆', condition: () => discoveredNodes.size >= totalDiscoverableNodes }
         ];
 
-        function updateScoreDisplay() {
-            document.getElementById('score-value').innerText = score;
-        }
-
+        function updateScoreDisplay() { document.getElementById('score-value').innerText = score; }
         function updateProgressBar() {
-            const progress = ((discoveredNodes.size - 1) / totalDiscoverableNodes) * 100;
+            const progress = (discoveredNodes.size / totalDiscoverableNodes) * 100;
             document.getElementById('progress-bar').style.width = `${Math.min(progress, 100)}%`;
         }
 
@@ -612,22 +655,6 @@
             });
         }
 
-        function getNodeColors() {
-            if (isDarkTheme) {
-                return {
-                    border: '#3498db',
-                    background: '#ffffff',
-                    font: 'ffffff'
-                };
-            } else {
-                return {
-                    border: '#555',
-                    background: '#1a1a2e',
-                    font: '#333333'
-                };
-            }
-        }
-
         function prepareData() {
             const nodes = [];
             const edges = [];
@@ -640,8 +667,17 @@
                     label: nodeData.label,
                     shape: 'dot',
                     size: size,
-                    color: { border: colors.border, background: colors.background, highlight: { border: '#2980b9', background: colors.background } },
-                    font: { size: nodeData.id === 'root' ? 16 : 12, color: colors.font, face: 'Segoe UI', bold: nodeData.id === 'root' },
+                    color: { 
+                        border: colors.border, 
+                        background: colors.background, 
+                        highlight: { border: '#2980b9', background: colors.background } 
+                    },
+                    font: { 
+                        size: nodeData.id === 'root' ? 16 : 12, 
+                        color: colors.font, 
+                        face: 'Segoe UI', 
+                        bold: nodeData.id === 'root' 
+                    },
                     borderWidth: 2,
                     shadow: { enabled: true, color: 'rgba(0,0,0,0.15)', size: 10, x: 2, y: 2 },
                     hasChildren: nodeData.children && nodeData.children.length > 0,
@@ -649,7 +685,12 @@
                 });
 
                 if (parentId) {
-                    edges.push({ from: parentId, to: nodeData.id, id: `${parentId}-${nodeData.id}` });
+                    edges.push({ 
+                        from: parentId, 
+                        to: nodeData.id, 
+                        id: `${parentId}-${nodeData.id}`,
+                        color: { color: getThemeColors().edgeColor }
+                    });
                 }
 
                 if (expandedNodes.has(nodeData.id) && nodeData.children) {
@@ -676,19 +717,12 @@
         const isMobile = window.innerWidth <= 768;
         const options = {
             nodes: {
-                color: {
-                    border: 'rgba(52, 73, 94, 0.3)',
-                    background: '#ffffff',
-                    highlight: { border: '#3498db', background: '#ffffff' },
-                    hover: { border: '#3498db', background: '#ffffff' }
-                },
                 shadow: { enabled: true, color: 'rgba(0,0,0,0.15)', size: 10, x: 2, y: 2 }
             },
             edges: {
-                color: { color: 'rgba(255, 255, 255, 0.3)', highlight: 'rgba(52, 152, 219, 0.8)' },
+                color: { color: 'rgba(128, 128, 128, 0.5)', highlight: 'rgba(52, 152, 219, 0.8)' },
                 width: 2,
-                smooth: { enabled: true, type: 'cubicBezier', forceDirection: 'none', roundness: 0.5 },
-                shadow: { enabled: false }
+                smooth: { enabled: true, type: 'cubicBezier', forceDirection: 'none', roundness: 0.5 }
             },
             physics: {
                 enabled: true,
@@ -700,20 +734,22 @@
                     damping: 0.4,
                     avoidOverlap: 0.5
                 },
-                solver: 'barnesHut',
-                stabilization: { enabled: true, iterations: isMobile ? 800 : 1200, updateInterval: 25, fit: true },
-                timestep: 0.4,
+                stabilization: { 
+                    enabled: true, 
+                    iterations: 500,
+                    updateInterval: 25, 
+                    fit: true 
+                },
                 adaptiveTimestep: true
             },
             interaction: { hover: true, dragNodes: true, dragView: true, zoomView: true, tooltipDelay: 200, navigationButtons: false, keyboard: false },
-            layout: { improvedLayout: true }
+            layout: { improvedLayout: false }
         };
 
         const initialData = prepareData();
         nodesDataSet = new vis.DataSet(initialData.nodes);
         edgesDataSet = new vis.DataSet(initialData.edges);
         network = new vis.Network(mapContainer, { nodes: nodesDataSet, edges: edgesDataSet }, options);
-
 
         async function expandNode(nodeId) {
             if (isAnimating) return;
@@ -725,16 +761,10 @@
             const newEdges = data.edges.filter(e => !edgesDataSet.get(e.id));
 
             if (newNodes.length > 0) {
-                network.setOptions({ physics: { enabled: false } });
-                
                 nodesDataSet.add(newNodes);
                 edgesDataSet.add(newEdges);
-
-                await new Promise(resolve => setTimeout(resolve, 50));
-                network.setOptions({ physics: { enabled: true } });
-                network.stabilize(isMobile ? 300 : 400);
-
-                setTimeout(() => { isAnimating = false; }, isMobile ? 400 : 500);
+                network.stabilize(isMobile ? 200 : 300);
+                setTimeout(() => { isAnimating = false; }, isMobile ? 300 : 400);
             } else {
                 isAnimating = false;
             }
@@ -752,31 +782,21 @@
                     findChildren(edge.to);
                 });
             }
-
             findChildren(nodeId);
 
             if (nodesToRemove.length > 0) {
-                network.setOptions({ physics: { enabled: false } });
-
                 nodesDataSet.remove(nodesToRemove);
                 const edgesToRemove = edgesDataSet.get({ filter: edge => nodesToRemove.includes(edge.from) || nodesToRemove.includes(edge.to) }).map(e => e.id);
                 edgesDataSet.remove(edgesToRemove);
-
-                await new Promise(resolve => setTimeout(resolve, 50));
-                network.setOptions({ physics: { enabled: true } });
-                network.stabilize(isMobile ? 250 : 300);
-
-                setTimeout(() => { isAnimating = false; }, isMobile ? 350 : 400);
+                setTimeout(() => { isAnimating = false; }, 300);
             } else {
                 isAnimating = false;
             }
         }
 
-
         network.on('click', function (params) {
-            if (params.nodes.length > 0 && !isAnimating) {
+            if (params.nodes.length > 0 && !isAnimating && !isRelaxedMode) {
                 playClickSound();
-
                 const nodeId = params.nodes[0];
                 const node = nodesDataSet.get(nodeId);
                 
@@ -784,9 +804,7 @@
                     const pos = network.getPositions([nodeId])[nodeId];
                     const canvasPos = network.canvasToDOM(pos);
                     createClickBurst(canvasPos.x, canvasPos.y);
-                } catch (e) {
-
-                }
+                } catch (e) {}
 
                 const originalSize = node.size;
                 nodesDataSet.update({ id: nodeId, size: originalSize * 1.2, borderWidth: 3 });
@@ -812,50 +830,49 @@
                         expandNode(nodeId);
                     }
                 }, 100);
+            } else if (isRelaxedMode && params.nodes.length > 0) {
+                playClickSound();
+                const nodeId = params.nodes[0];
+                try {
+                    const pos = network.getPositions([nodeId])[nodeId];
+                    const canvasPos = network.canvasToDOM(pos);
+                    createClickBurst(canvasPos.x, canvasPos.y);
+                } catch(e){}
             }
         });
 
         network.on('hoverNode', function (params) {
             if (!isAnimating) {
-                const nodeId = params.node;
-                const node = nodesDataSet.get(nodeId);
-                if (node.hasChildren) {
-                    mapContainer.style.cursor = 'pointer';
-                    nodesDataSet.update({
-                        id: nodeId,
-                        borderWidth: 3,
-                        shadow: { enabled: true, color: 'rgba(52, 152, 219, 0.4)', size: 15, x: 3, y: 3 }
-                    });
-                }
+                mapContainer.style.cursor = 'pointer';
+                nodesDataSet.update({
+                    id: params.node,
+                    borderWidth: 3,
+                    shadow: { enabled: true, color: 'rgba(52, 152, 219, 0.4)', size: 15, x: 3, y: 3 }
+                });
             }
         });
 
         network.on('blurNode', function (params) {
-            const nodeId = params.node;
             nodesDataSet.update({
-                id: nodeId,
+                id: params.node,
                 borderWidth: 2,
                 shadow: { enabled: true, color: 'rgba(0,0,0,0.15)', size: 10, x: 2, y: 2 }
             });
             mapContainer.style.cursor = 'default';
         });
 
-        network.once('stabilizationIterationsDone', function() {
-            network.setOptions({ physics: { enabled: true } });
-        });
-
-
         let inactivityTimer;
         function resetInactivityTimer() {
             clearTimeout(inactivityTimer);
+            if(!network.physics.barnesHut.enabled) {
+                 network.setOptions({ physics: { enabled: true } });
+            }
             inactivityTimer = setTimeout(() => {
-                network.physics.barnesHut.enabled = false;
-            }, 5000);
+                network.setOptions({ physics: { enabled: false } });
+            }, 4000);
         }
-
         mapContainer.addEventListener('mousedown', resetInactivityTimer, { passive: true });
         mapContainer.addEventListener('touchstart', resetInactivityTimer, { passive: true });
-
 
         window.addEventListener('beforeunload', () => {
             network.destroy();
