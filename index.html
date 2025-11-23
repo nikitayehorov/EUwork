@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
-    <title>Проєкт для ЄУ - Візуальні Ефекти-ПРАК9</title>
+    <title>Оптимізація CPU/GPU - Візуальні Ефекти</title>
     
     <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/vis/4.21.0/vis.min.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/vis/4.21.0/vis.min.css" rel="stylesheet" type="text/css" />
@@ -32,6 +32,7 @@
             height: 100%;
             z-index: 1;
             pointer-events: none;
+            will-change: transform; 
         }
         
         #interactive-map {
@@ -439,14 +440,30 @@
             }
         }
 
+        let animationFrameId;
+        let isTabActive = true;
+
         function animateParticles() {
+            if (!isTabActive) return;
+
             bgCtx.clearRect(0, 0, bgCanvas.width, bgCanvas.height);
             pCtx.clearRect(0, 0, particleCanvas.width, particleCanvas.height);
             bgParticles.forEach(p => { p.update(); p.draw(); });
             clickParticles = clickParticles.filter(p => p.life > 0);
             clickParticles.forEach(p => { p.update(); p.draw(); });
-            requestAnimationFrame(animateParticles);
+            
+            animationFrameId = requestAnimationFrame(animateParticles);
         }
+
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                isTabActive = false;
+                cancelAnimationFrame(animationFrameId);
+            } else {
+                isTabActive = true;
+                animateParticles();
+            }
+        });
 
         initBgParticles();
         animateParticles();
@@ -679,7 +696,7 @@
                         bold: nodeData.id === 'root' 
                     },
                     borderWidth: 2,
-                    shadow: { enabled: true, color: 'rgba(0,0,0,0.15)', size: 10, x: 2, y: 2 },
+                    shadow: { enabled: false },
                     hasChildren: nodeData.children && nodeData.children.length > 0,
                     level: level
                 });
@@ -717,7 +734,7 @@
         const isMobile = window.innerWidth <= 768;
         const options = {
             nodes: {
-                shadow: { enabled: true, color: 'rgba(0,0,0,0.15)', size: 10, x: 2, y: 2 }
+                shadow: { enabled: false }
             },
             edges: {
                 color: { color: 'rgba(128, 128, 128, 0.5)', highlight: 'rgba(52, 152, 219, 0.8)' },
@@ -856,7 +873,7 @@
             nodesDataSet.update({
                 id: params.node,
                 borderWidth: 2,
-                shadow: { enabled: true, color: 'rgba(0,0,0,0.15)', size: 10, x: 2, y: 2 }
+                shadow: { enabled: false } 
             });
             mapContainer.style.cursor = 'default';
         });
@@ -869,7 +886,7 @@
             }
             inactivityTimer = setTimeout(() => {
                 network.setOptions({ physics: { enabled: false } });
-            }, 4000);
+            }, 2000);
         }
         mapContainer.addEventListener('mousedown', resetInactivityTimer, { passive: true });
         mapContainer.addEventListener('touchstart', resetInactivityTimer, { passive: true });
@@ -882,5 +899,3 @@
     </script>
 </body>
 </html>
-
-
